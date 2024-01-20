@@ -1,5 +1,10 @@
 const resultado = document.querySelector('#resultado');
 const formulario = document.querySelector('#formulario');
+const paginacionDiv = document.querySelector('#paginacion');
+const registrosPorPagina = 40;
+let totalPaginas;
+let iterador;
+let paginaActual = 1;
 
 window.onload = () => {
     formulario.addEventListener('submit', validarFormulario);
@@ -15,7 +20,7 @@ function validarFormulario(e) {
         return;
     }
 
-    buscarImagenes(terminoBusqueda);
+    buscarImagenes();
 };
 
 function mostrarAlerta(mensaje) {
@@ -38,17 +43,29 @@ function mostrarAlerta(mensaje) {
     };
 };
 
-function buscarImagenes(termino) {
+function buscarImagenes() {
+    const termino = document.querySelector('#termino').value;
     const key = '41921743-323e61df8d961a53e5bc86397';
-    const url = `https://pixabay.com/api/?key=${key}&q=${termino}&per_page=50`;
+    const url = `https://pixabay.com/api/?key=${key}&q=${termino}&per_page=${registrosPorPagina}&page=${paginaActual}`;
 
     fetch(url)
         .then(respuesta => respuesta.json())
         .then(resultado => {
+            totalPaginas = calcularPaginas(resultado.totalHits);
             mostrarImagenes(resultado.hits);
-            console.log(resultado.hits);
         });
 };
+
+// Generador para registrar la cantidad de elementos de acuerdo a las paginas
+function* crearPaginador(total) {
+    for (let i = 1; i <= total; i++) {
+        yield i;
+    }
+};
+
+function calcularPaginas(total) {
+    return parseInt(Math.ceil(total / registrosPorPagina));
+}
 
 function mostrarImagenes(imagenes) {
     while (resultado.firstChild) {
@@ -59,7 +76,7 @@ function mostrarImagenes(imagenes) {
     imagenes.forEach(imagen => {
         const { previewURL, likes, views, largeImageURL } = imagen;
 
-        resultado.innerHTML = `
+        resultado.innerHTML += `
             <div class="w-1/2 md:w-1/3 lg:w-1/4 p-3 mb-4">
                 <div class="bg-white">
                     <img class="w-full" src="${previewURL}" />
@@ -81,4 +98,34 @@ function mostrarImagenes(imagenes) {
             </div>
         `;
     });
+
+    // limpiar el paginador previo
+    while (paginacionDiv.firstChild) {
+        paginacionDiv.removeChild(paginacionDiv.firstChild);
+    }
+
+    // Generamos el paginador correspondiente
+    imprimirPaginador();
 };
+
+function imprimirPaginador() {
+    iterador = crearPaginador(totalPaginas);
+    while (true) {
+        const { value, done } = iterador.next();
+        if (done) return;
+
+        // Genera un boton por cada elemento del generador
+        const boton = document.createElement('BUTTON');
+        boton.href = '#';
+        boton.dataset.pagina = value;
+        boton.textContent = value;
+        boton.classList.add('siguiente', 'bg-yellow-400', 'px-4', 'py-1', 'mr-2', 'font-bold', 'mb-4', 'uppercase', 'rounded');
+
+        boton.onclick = () => {
+            paginaActual = value;
+            buscarImagenes();
+        }
+
+        paginacionDiv.appendChild(boton);
+    }
+}
